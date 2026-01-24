@@ -42,13 +42,11 @@ export function Tutors() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="max-w-[1200px] mx-auto px-6 py-8"> {/* Reduzi a largura max para 1200px para ficar mais compacto em lista */}
+      <main className="max-w-[1200px] mx-auto px-6 py-8">
         
-        {/* Cabeçalho */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Tutores</h1>
-            {/* AJUSTE 1: Texto novo e cor branca */}
             <p className="text-white">Gerenciamento de Tutores</p>
           </div>
 
@@ -77,17 +75,15 @@ export function Tutors() {
           </div>
         </div>
 
-        {/* Listagem em Lista Vertical */}
         {loading ? (
           <div className="text-center py-20 text-gray-500 animate-pulse">Carregando dados...</div>
         ) : (
           <>
-            {/* AJUSTE 2: Mudamos de Grid para Flex Column (Lista) */}
             <div className="flex flex-col gap-4 mb-8">
               {tutors.map((tutor) => (
                 <div 
                   key={tutor.id} 
-                  className="bg-surface rounded-xl border border-gray-800 p-4 sm:p-6 hover:border-primary/50 transition-all group flex flex-col sm:flex-row items-start sm:items-center gap-6"
+                  className="bg-surface rounded-xl border border-gray-800 p-4 sm:p-6 hover:border-primary/50 transition-all group flex flex-col sm:flex-row items-start sm:items-center gap-6 relative"
                 >
                   {/* Foto */}
                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-black/50 overflow-hidden flex-shrink-0 border-2 border-gray-700 group-hover:border-primary transition-colors">
@@ -100,12 +96,17 @@ export function Tutors() {
                     )}
                   </div>
 
-                  {/* Informações (Expandem para ocupar o meio) */}
+                  {/* Informações */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-xl font-bold text-white truncate mb-2">{tutor.nome}</h3>
+                    <div className="flex items-center gap-3 mb-2">
+                       <h3 className="text-xl font-bold text-white truncate">{tutor.nome}</h3>
+                       {/* NOVO ID NEON AQUI */}
+                       <span className="text-xs text-cyan-400 font-bold bg-cyan-950/30 px-2 py-0.5 rounded border border-cyan-400/20">
+                         #{tutor.id}
+                       </span>
+                    </div>
                     
                     <div className="flex flex-col sm:flex-row sm:gap-6 gap-2 text-sm">
-                      {/* AJUSTE 3: Cor mais clara (text-gray-300) para leitura fácil */}
                       <p className="flex items-center gap-2 text-gray-300">
                         <Phone className="w-4 h-4 text-primary" /> 
                         {tutor.telefone}
@@ -117,7 +118,6 @@ export function Tutors() {
                     </div>
                   </div>
 
-                  {/* Botão (Fica na direita no desktop) */}
                   <button 
                     onClick={() => navigate(`/tutores/${tutor.id}`)}
                     className="w-full sm:w-auto px-6 py-2 rounded-lg bg-black/40 border border-gray-700 hover:border-primary hover:text-white text-primary font-bold text-sm uppercase tracking-wide transition-all flex items-center justify-center gap-2"
@@ -129,7 +129,6 @@ export function Tutors() {
               ))}
             </div>
 
-            {/* Paginação */}
             <div className="flex items-center justify-between border-t border-gray-800 pt-6">
               <span className="text-sm text-gray-400">
                 Página <span className="text-white font-bold">{page + 1}</span> de <span className="text-white font-bold">{totalPages}</span>

@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { ArrowLeft, Save, Upload, Camera, User, Phone, Bug } from 'lucide-react';
+import { ArrowLeft, Save, Upload, Camera, User, Phone, AlertCircle, ChevronRight } from 'lucide-react';
 import { Header } from '../components/Header';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { petService } from '../services/petService';
-import { tutorService } from '../services/tutorService';
 import type { Pet, PetRequest } from '../types/pet';
 import type { Tutor } from '../types/tutor';
 
@@ -14,12 +13,11 @@ export function PetDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [pet, setPet] = useState<Pet | null>(null);
-  const [tutor, setTutor] = useState<Tutor | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [tutors, setTutors] = useState<Tutor[]>([]);
   
+  const [isLoading, setIsLoading] = useState(false);
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<PetRequest>();
 
-  // Monitora o valor atual para mostrar aviso se necessário
   const currentSpecies = watch('especie');
 
   useEffect(() => {
@@ -35,17 +33,14 @@ export function PetDetails() {
       setValue('raca', data.raca);
       setValue('idade', data.idade);
       
-      // NÃO forçamos mais 'CACHORRO'. Se não vier nada, fica vazio.
-      // Isso mostra a realidade: o dado não foi salvo.
       if (data.especie) {
         setValue('especie', data.especie);
       }
 
-      // Lógica de Tutor (Lista -> Primeiro item)
       if (data.tutores && data.tutores.length > 0) {
-        setTutor(data.tutores[0]);
+        setTutors(data.tutores);
       } else {
-        setTutor(null);
+        setTutors([]);
       }
 
     } catch (error) {
@@ -59,7 +54,7 @@ export function PetDetails() {
     try {
       setIsLoading(true);
       await petService.update(Number(id), data);
-      alert('Pet atualizado! (Nota: A espécie pode não ser salva devido a limitações da API)');
+      alert('Dados salvos com sucesso!');
       loadPet(Number(id));
     } catch (error) {
       alert('Erro ao atualizar.');
@@ -93,6 +88,7 @@ export function PetDetails() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           
+          {/* COLUNA ESQUERDA: FOTO E LISTA DE TUTORES */}
           <div className="md:col-span-1 space-y-6">
             <div className="bg-surface border border-gray-800 rounded-xl p-6 flex flex-col items-center">
               <div className="w-40 h-40 rounded-full bg-black/50 overflow-hidden mb-4 relative group border-4 border-gray-800">
@@ -107,74 +103,85 @@ export function PetDetails() {
                 </label>
               </div>
               <h2 className="text-xl font-bold text-white text-center">{pet.nome}</h2>
-              {/* Só mostra a espécie se ela existir mesmo */}
               <p className="text-primary text-sm font-bold uppercase">
                 {currentSpecies ? `${currentSpecies} • ` : ''}{pet.raca}
               </p>
+              
+              {/* --- NOVO: ID DO PET AQUI --- */}
+              <p className="text-xs text-cyan-400 font-bold mt-2 bg-cyan-950/30 px-3 py-1 rounded-full border border-cyan-400/20">
+                ID: #{pet.id}
+              </p>
             </div>
 
+            {/* CARD DE TUTORES */}
             <div className="bg-surface border border-gray-800 rounded-xl p-6">
-              <h3 className="text-white font-bold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider">
-                <User className="w-4 h-4 text-primary" /> Tutor Responsável
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-bold flex items-center gap-2 text-sm uppercase tracking-wider">
+                  <User className="w-4 h-4 text-primary" /> Tutores ({tutors.length})
+                </h3>
+              </div>
               
-              {tutor ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
-                       {tutor.foto ? <img src={tutor.foto.url} className="w-full h-full object-cover"/> : <User className="w-5 h-5 text-gray-400"/>}
+              {tutors.length > 0 ? (
+                <div className="space-y-4">
+                  {tutors.map((tutor) => (
+                    <div key={tutor.id} className="pb-4 border-b border-gray-800 last:border-0 last:pb-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                           {tutor.foto ? <img src={tutor.foto.url} className="w-full h-full object-cover"/> : <User className="w-5 h-5 text-gray-400"/>}
+                        </div>
+                        <div className="overflow-hidden">
+                          <p className="text-white font-bold text-sm truncate" title={tutor.nome}>{tutor.nome}</p>
+                          <p className="text-xs text-cyan-400 font-bold">ID: {tutor.id}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="pl-1">
+                        <p className="text-xs text-gray-300 flex items-center gap-2 mb-2">
+                           <Phone className="w-3 h-3 text-primary"/> {tutor.telefone}
+                        </p>
+                        <button 
+                          onClick={() => navigate(`/tutores/${tutor.id}`)}
+                          className="w-full text-[10px] font-bold text-primary border border-primary/30 rounded py-1.5 hover:bg-primary/10 transition-colors flex items-center justify-center gap-1 uppercase tracking-wider"
+                        >
+                          VER PERFIL <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white font-bold text-sm">{tutor.nome}</p>
-                      <p className="text-xs text-gray-400">ID: {tutor.id}</p>
-                    </div>
-                  </div>
-                  <div className="pt-2 border-t border-gray-800">
-                    <p className="text-sm text-gray-300 flex items-center gap-2">
-                       <Phone className="w-3 h-3 text-primary"/> {tutor.telefone}
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => navigate(`/tutores/${tutor.id}`)}
-                    className="w-full mt-2 text-xs text-primary border border-primary/30 rounded py-2 hover:bg-primary/10 transition-colors"
-                  >
-                    VER PERFIL DO TUTOR
-                  </button>
+                  ))}
                 </div>
               ) : (
-                <div className="text-center py-4 bg-black/20 rounded-lg">
+                <div className="text-center py-6 bg-black/20 rounded-lg">
                   <p className="text-gray-500 text-sm italic">Este pet não possui tutor vinculado.</p>
-                  <p className="text-xs text-gray-600 mt-1">Vincule-o através da tela de Tutores.</p>
+                  <p className="text-xs text-gray-600 mt-2">Vincule-o através da tela de Tutores.</p>
                 </div>
               )}
             </div>
           </div>
 
+          {/* COLUNA DIREITA: FORMULÁRIO */}
           <div className="md:col-span-2">
             <div className="bg-surface border border-gray-800 rounded-xl p-8">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-white">Editar Dados</h2>
+                <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">Modo Edição</span>
               </div>
               
               <form onSubmit={handleSubmit(handleUpdate)} className="space-y-4">
                 <Input label="Nome do Pet" {...register('nome')} error={errors.nome?.message} />
                 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-gray-200">Espécie</label>
-                    <select 
-                      className="w-full p-3 rounded-lg bg-background border border-gray-700 text-white focus:border-primary outline-none"
-                      {...register('especie')}
-                    >
-                      <option value="">Selecione...</option>
-                      <option value="CACHORRO">Cachorro</option>
-                      <option value="GATO">Gato</option>
-                      <option value="AVE">Ave</option>
-                      <option value="OUTRO">Outro</option>
-                    </select>
-                    <p className="text-[10px] text-yellow-500/80 mt-1">
-                      ⚠️ O servidor atual não persiste este campo (limitação da API).
-                    </p>
+                  <div>
+                    <Input 
+                      label="Espécie" 
+                      placeholder="Ex: Cachorro, Gato..." 
+                      {...register('especie')} 
+                    />
+                    <div className="flex items-start gap-1 mt-1.5 opacity-60">
+                      <AlertCircle className="w-3 h-3 text-yellow-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-[10px] text-gray-400 leading-tight">
+                        Atenção: A API atual não persiste este campo.
+                      </p>
+                    </div>
                   </div>
                   
                   <Input label="Raça" {...register('raca')} error={errors.raca?.message} />
@@ -189,18 +196,8 @@ export function PetDetails() {
                 </div>
               </form>
             </div>
-            
-            {/* Mantive o DEBUG só para você conferir, pode remover depois se quiser */}
-             <div className="mt-8 p-4 bg-gray-900 border border-gray-700 rounded-lg overflow-hidden opacity-50 hover:opacity-100 transition-opacity">
-               <h3 className="text-gray-400 font-bold flex items-center gap-2 mb-2 text-xs uppercase">
-                 <Bug className="w-3 h-3" /> Dados Brutos (API)
-               </h3>
-               <pre className="text-[10px] text-green-400 font-mono whitespace-pre-wrap break-all">
-                 {JSON.stringify(pet, null, 2)}
-               </pre>
-            </div>
-
           </div>
+
         </div>
       </main>
     </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, PlusCircle } from 'lucide-react';
+import { ArrowLeft, Save, PlusCircle, Bug } from 'lucide-react';
 import { Header } from '../components/Header';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
@@ -56,20 +56,18 @@ export function PetForm() {
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* CORREÇÃO AQUI: VALUES EM MAIÚSCULO */}
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-gray-200">Espécie</label>
-                <select 
-                  className="w-full p-3 rounded-lg bg-background border border-gray-700 text-white focus:border-primary outline-none transition-all appearance-none"
+              
+              {/* CAMPO DE TEXTO AQUI TAMBÉM */}
+              <div>
+                <Input
+                  label="Espécie"
+                  placeholder="Ex: Cachorro, Gato..."
+                  error={errors.especie?.message}
                   {...register('especie', { required: 'Espécie é obrigatória' })}
-                >
-                  <option value="">Selecione...</option>
-                  <option value="CACHORRO">CACHORRO</option>
-                  <option value="GATO">GATO</option>
-                  <option value="AVE">AVE</option>
-                  <option value="OUTRO">OUTRO</option>
-                </select>
-                {errors.especie && <span className="text-xs text-red-400">{errors.especie.message}</span>}
+                />
+                 <p className="text-[10px] text-gray-500 mt-1 flex items-center gap-1 opacity-70">
+                    <Bug className="w-3 h-3" /> Campo exigido no layout, não persistido pela API.
+                 </p>
               </div>
 
               <Input

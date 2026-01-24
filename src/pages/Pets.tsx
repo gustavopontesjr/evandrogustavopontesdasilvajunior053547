@@ -45,7 +45,7 @@ export function Pets() {
 
       <main className="max-w-[1600px] mx-auto px-6 py-8">
         
-        {/* Cabeçalho */}
+        {/* Cabeçalho Otimizado */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Pets Cadastrados</h1>
@@ -53,6 +53,7 @@ export function Pets() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+            {/* Barra de Busca */}
             <div className="relative flex-1 sm:w-80">
               <Search className="absolute left-3 top-3.5 w-5 h-5 text-gray-500" />
               <input 
@@ -67,6 +68,7 @@ export function Pets() {
               />
             </div>
             
+            {/* Botão de Cadastro */}
             <Button 
               onClick={() => navigate('/pets/novo')}
               className="flex items-center justify-center gap-2 px-6 py-3 font-bold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all whitespace-nowrap"
@@ -79,18 +81,26 @@ export function Pets() {
 
         {/* Listagem */}
         {loading ? (
-          <div className="text-center py-20 text-gray-500 animate-pulse">Carregando dados...</div>
+          <div className="text-center py-20 text-gray-500 animate-pulse">
+            Carregando dados do sistema...
+          </div>
         ) : (
           <>
             {pets.length === 0 ? (
-               <div className="text-center py-20 text-gray-500">Nenhum pet encontrado.</div>
+               <div className="text-center py-20 text-gray-500">
+                 Nenhum pet encontrado.
+               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
                 {pets.map((pet) => (
                   <div key={pet.id} className="bg-surface rounded-xl border border-gray-800 overflow-hidden hover:border-primary/50 transition-colors group flex flex-col">
                     <div className="h-48 w-full bg-black/50 relative overflow-hidden">
                         {pet.foto ? (
-                            <img src={pet.foto.url} alt={pet.nome} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            <img 
+                              src={pet.foto.url} 
+                              alt={pet.nome} 
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                            />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-600 flex-col gap-2">
                                 <PawPrint className="w-10 h-10 opacity-20" />
@@ -104,13 +114,12 @@ export function Pets() {
                     
                     <div className="p-5 flex-1 flex flex-col">
                       <h3 className="text-xl font-bold text-white mb-1 truncate" title={pet.nome}>{pet.nome}</h3>
-                      {/* MOSTRANDO ESPÉCIE E RAÇA */}
-                      <p className="text-primary text-xs font-bold mb-4 uppercase tracking-wide truncate">
-                        {pet.especie} • {pet.raca}
-                      </p>
+                      <p className="text-primary text-sm font-medium mb-4 uppercase tracking-wide truncate">{pet.raca}</p>
                       
                       <div className="mt-auto border-t border-gray-800 pt-4 flex justify-between items-center">
-                          <span className="text-xs text-white font-medium">ID: #{pet.id}</span>
+                          {/* AJUSTE: ID AGORA É AZUL NEON (text-cyan-400) */}
+                          <span className="text-xs text-cyan-400 font-bold">ID: #{pet.id}</span>
+                          
                           <button 
                             onClick={() => navigate(`/pets/${pet.id}`)}
                             className="text-sm text-primary hover:text-white font-bold uppercase tracking-wide transition-colors"
@@ -131,11 +140,24 @@ export function Pets() {
               </span>
 
               <div className="flex gap-2">
-                <Button variant="outline" disabled={page === 0} onClick={() => handlePageChange(page - 1)} className="flex items-center gap-2 px-4 py-2">
-                  <ChevronLeft className="w-4 h-4" /> Anterior
+                <Button 
+                  variant="outline" 
+                  disabled={page === 0}
+                  onClick={() => handlePageChange(page - 1)}
+                  className="flex items-center gap-2 px-4 py-2"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Anterior
                 </Button>
-                <Button variant="outline" disabled={page >= totalPages - 1} onClick={() => handlePageChange(page + 1)} className="flex items-center gap-2 px-4 py-2">
-                  Próxima <ChevronRight className="w-4 h-4" />
+
+                <Button 
+                  variant="outline" 
+                  disabled={page >= totalPages - 1}
+                  onClick={() => handlePageChange(page + 1)}
+                  className="flex items-center gap-2 px-4 py-2"
+                >
+                  Próxima
+                  <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
             </div>

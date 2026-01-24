@@ -6,18 +6,43 @@ import { Header } from '../components/Header';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { tutorService } from '../services/tutorService';
-import type { Tutor, TutorRequest } from '../types/tutor';
+import type { Tutor } from '../types/tutor';
+
+// Interface local para evitar conflito de tipos no formulário
+interface TutorFormSchema {
+  nome: string;
+  email: string;
+  cpf: string;
+  telefone: string;
+  endereco: string;
+}
 
 export function TutorDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [tutor, setTutor] = useState<Tutor | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Estado para o input de vincular pet
   const [petIdToLink, setPetIdToLink] = useState('');
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<TutorRequest>();
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<TutorFormSchema>();
+
+  // --- MÁSCARAS ---
+  const maskCPF = (value: string | number) => {
+    const stringValue = String(value);
+    return stringValue
+      .replace(/\D/g, '')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+      .replace(/(-\d{2})\d+?$/, '$1');
+  };
+
+  const maskPhone = (value: string) => {
+    return String(value)
+      .replace(/\D/g, '')
+      .replace(/^(\d{2})(\d)/g, '($1) $2')
+      .replace(/(\d)(\d{4})$/, '$1-$2');
+  };
 
   useEffect(() => {
     if (id) loadTutor(Number(id));
@@ -27,24 +52,30 @@ export function TutorDetails() {
     try {
       const data = await tutorService.getById(tutorId);
       setTutor(data);
-      // Preenche formulário
+      
       setValue('nome', data.nome);
       setValue('email', data.email);
-      setValue('telefone', data.telefone);
+      // Aplica máscara ao carregar
+      setValue('telefone', maskPhone(data.telefone));
+      setValue('cpf', maskCPF(data.cpf));
       setValue('endereco', data.endereco);
-      setValue('cpf', data.cpf);
     } catch (error) {
       console.error('Erro ao carregar', error);
       navigate('/tutores');
     }
   }
 
-  // 1. Atualizar Dados
-  async function handleUpdate(data: TutorRequest) {
+  async function handleUpdate(data: TutorFormSchema) {
     if (!id) return;
     try {
       setIsLoading(true);
-      const payload = { ...data, cpf: Number(data.cpf) };
+      // Limpeza das máscaras antes de enviar
+      const payload = { 
+        ...data, 
+        cpf: Number(data.cpf.replace(/\D/g, '')),
+        telefone: data.telefone.replace(/\D/g, '')
+      };
+
       await tutorService.update(Number(id), payload);
       alert('Dados atualizados!');
       loadTutor(Number(id));
@@ -55,7 +86,6 @@ export function TutorDetails() {
     }
   }
 
-  // 2. Upload de Foto
   async function handlePhotoUpload(event: React.ChangeEvent<HTMLInputElement>) {
     if (!event.target.files?.length || !id) return;
     try {
@@ -69,24 +99,21 @@ export function TutorDetails() {
     }
   }
 
-  // 3. Vincular Pet
   async function handleLinkPet() {
     if (!id || !petIdToLink) return;
     try {
       setIsLoading(true);
       await tutorService.linkPet(Number(id), Number(petIdToLink));
-      setPetIdToLink(''); // Limpa o campo
-      await loadTutor(Number(id)); // Recarrega para ver o pet na lista
+      setPetIdToLink('');
+      await loadTutor(Number(id));
       alert('Pet vinculado com sucesso!');
     } catch (error) {
-      console.error(error);
       alert('Erro ao vincular. Verifique se o ID do Pet existe.');
     } finally {
       setIsLoading(false);
     }
   }
 
-  // 4. Desvincular Pet
   async function handleUnlinkPet(petId: number) {
     if (!id || !confirm('Tem certeza que deseja remover este pet do tutor?')) return;
     try {
@@ -112,7 +139,7 @@ export function TutorDetails() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* COLUNA ESQUERDA: FOTO E INFO BÁSICA */}
+          {/* COLUNA ESQUERDA */}
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-surface border border-gray-800 rounded-xl p-6 flex flex-col items-center">
               <div className="w-40 h-40 rounded-full bg-black/50 overflow-hidden mb-4 relative group border-4 border-gray-800">
@@ -127,10 +154,14 @@ export function TutorDetails() {
                 </label>
               </div>
               <h2 className="text-xl font-bold text-white text-center">{tutor.nome}</h2>
-              <p className="text-gray-400 text-sm mt-1">{tutor.email}</p>
+              <p className="text-gray-400 text-sm mt-1 mb-2">{tutor.email}</p>
+              
+              {/* ID NEON */}
+              <p className="text-xs text-cyan-400 font-bold bg-cyan-950/30 px-3 py-1 rounded-full border border-cyan-400/20">
+                ID: #{tutor.id}
+              </p>
             </div>
 
-            {/* AREA DE VINCULAR NOVO PET */}
             <div className="bg-surface border border-gray-800 rounded-xl p-6">
               <h3 className="text-white font-bold mb-4 flex items-center gap-2">
                 <LinkIcon className="w-4 h-4 text-primary" /> Vincular Novo Pet
@@ -153,10 +184,9 @@ export function TutorDetails() {
             </div>
           </div>
 
-          {/* COLUNA DIREITA: FORMULÁRIO E LISTA DE PETS */}
+          {/* COLUNA DIREITA */}
           <div className="lg:col-span-2 space-y-8">
             
-            {/* FORMULÁRIO DE EDIÇÃO */}
             <div className="bg-surface border border-gray-800 rounded-xl p-8">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-white">Editar Informações</h2>
@@ -164,12 +194,38 @@ export function TutorDetails() {
               </div>
               
               <form onSubmit={handleSubmit(handleUpdate)} className="space-y-4">
-                <Input label="Nome" {...register('nome')} error={errors.nome?.message} />
+                <Input 
+                  label="Nome" 
+                  maxLength={80} 
+                  {...register('nome', { required: true })} 
+                  error={errors.nome?.message} 
+                />
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Telefone" {...register('telefone')} error={errors.telefone?.message} />
-                  <Input label="CPF (Apenas números)" type="number" {...register('cpf')} error={errors.cpf?.message} />
+                  <Input 
+                    label="Telefone" 
+                    maxLength={15}
+                    {...register('telefone', { 
+                       required: true,
+                       onChange: (e) => setValue('telefone', maskPhone(e.target.value))
+                    })} 
+                    error={errors.telefone?.message} 
+                  />
+                  <Input 
+                    label="CPF" 
+                    maxLength={14}
+                    {...register('cpf', { 
+                       required: true,
+                       onChange: (e) => setValue('cpf', maskCPF(e.target.value))
+                    })} 
+                    error={errors.cpf?.message} 
+                  />
                 </div>
-                <Input label="Endereço" {...register('endereco')} error={errors.endereco?.message} />
+                <Input 
+                  label="Endereço" 
+                  maxLength={150}
+                  {...register('endereco')} 
+                  error={errors.endereco?.message} 
+                />
                 
                 <div className="flex justify-end pt-2">
                    <Button type="submit" isLoading={isLoading} className="gap-2"><Save className="w-4 h-4" /> Salvar</Button>
@@ -177,7 +233,7 @@ export function TutorDetails() {
               </form>
             </div>
 
-            {/* LISTA DE PETS VINCULADOS */}
+            {/* LISTA DE PETS DA FAMÍLIA */}
             <div>
               <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <PawPrint className="w-5 h-5 text-primary" /> Pets da Família
@@ -198,7 +254,7 @@ export function TutorDetails() {
                         <div>
                           <p className="text-white font-bold">{pet.nome}</p>
                           <p className="text-xs text-primary uppercase">{pet.raca}</p>
-                          <p className="text-xs text-gray-500">ID: {pet.id}</p>
+                          <p className="text-xs text-cyan-400 font-bold">ID: {pet.id}</p>
                         </div>
                       </div>
                       

@@ -6,27 +6,55 @@ import { Header } from '../components/Header';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { tutorService } from '../services/tutorService';
-import type { TutorRequest } from '../types/tutor';
+
+// Interface local para o Formulário (aceita máscaras como string)
+interface TutorFormSchema {
+  nome: string;
+  email: string;
+  cpf: string;       // String aqui para aceitar pontos e traços
+  telefone: string;  // String aqui para aceitar parenteses
+  endereco: string;
+}
 
 export function TutorForm() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm<TutorRequest>();
+  
+  // Usamos o Schema local para o formulário não reclamar
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<TutorFormSchema>();
 
-  async function handleSave(data: TutorRequest) {
+  // --- MÁSCARAS ---
+  const maskCPF = (value: string) => {
+    return value
+      .replace(/\D/g, '')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+      .replace(/(-\d{2})\d+?$/, '$1');
+  };
+
+  const maskPhone = (value: string) => {
+    return value
+      .replace(/\D/g, '')
+      .replace(/^(\d{2})(\d)/g, '($1) $2')
+      .replace(/(\d)(\d{4})$/, '$1-$2');
+  };
+
+  async function handleSave(data: TutorFormSchema) {
     try {
       setIsLoading(true);
-      // A API exige CPF como número, garantimos a conversão aqui
+      // Limpeza: Remove a máscara antes de enviar para a API
       const payload = { 
         ...data, 
-        cpf: Number(data.cpf) 
+        cpf: Number(data.cpf.replace(/\D/g, '')), // Vira número puro
+        telefone: data.telefone.replace(/\D/g, '') // Vira string de números pura
       };
       
       await tutorService.create(payload);
       navigate('/tutores');
     } catch (error) {
       console.error('Erro ao salvar tutor', error);
-      alert('Erro ao salvar. Verifique se o CPF já não existe.');
+      alert('Erro ao salvar. Verifique os dados.');
     } finally {
       setIsLoading(false);
     }
@@ -57,30 +85,39 @@ export function TutorForm() {
             <Input
               label="Nome Completo"
               placeholder="Ex: João da Silva"
+              maxLength={80}
               error={errors.nome?.message}
               {...register('nome', { required: 'Nome é obrigatório' })}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
-                label="CPF (Somente números)"
-                type="number"
-                placeholder="Ex: 12345678900"
+                label="CPF"
+                placeholder="000.000.000-00"
+                maxLength={14}
                 error={errors.cpf?.message}
-                {...register('cpf', { required: 'CPF é obrigatório' })}
+                {...register('cpf', { 
+                  required: 'CPF é obrigatório',
+                  onChange: (e) => setValue('cpf', maskCPF(e.target.value))
+                })}
               />
               
               <Input
                 label="Telefone"
-                placeholder="Ex: (65) 99999-9999"
+                placeholder="(99) 99999-9999"
+                maxLength={15}
                 error={errors.telefone?.message}
-                {...register('telefone', { required: 'Telefone é obrigatório' })}
+                {...register('telefone', { 
+                  required: 'Telefone é obrigatório',
+                  onChange: (e) => setValue('telefone', maskPhone(e.target.value))
+                })}
               />
             </div>
 
             <Input
               label="E-mail"
               type="email"
+              maxLength={100}
               placeholder="Ex: joao@email.com"
               error={errors.email?.message}
               {...register('email', { required: 'E-mail é obrigatório' })}
@@ -88,6 +125,7 @@ export function TutorForm() {
 
             <Input
               label="Endereço"
+              maxLength={150}
               placeholder="Ex: Rua das Flores, 123"
               error={errors.endereco?.message}
               {...register('endereco', { required: 'Endereço é obrigatório' })}
