@@ -2,7 +2,6 @@ import { api } from './api';
 import type { PaginatedResponse } from '../types/pagination';
 import type { Pet, PetRequest } from '../types/pet';
 
-// URL base fixa para garantir que o fetch funcione (mesma usada no api.ts)
 const BASE_URL = 'https://pet-manager-api.geia.vip';
 
 export const petService = {
@@ -27,19 +26,22 @@ export const petService = {
     return response.data;
   },
 
-  // CORREÇÃO: Usando fetch nativo para evitar conflitos de cabeçalho do Axios
+  // --- NOVO: FUNÇÃO DE DELETAR ---
+  delete: async (id: number) => {
+    const response = await api.delete(`/v1/pets/${id}`);
+    return response.data;
+  },
+
   uploadPhoto: async (id: number, file: File) => {
     const formData = new FormData();
-    formData.append('foto', file); // O nome correto confirmado no Swagger
+    formData.append('foto', file); 
 
-    // Pegamos o token direto do armazenamento
     const token = localStorage.getItem('access_token');
 
     const response = await fetch(`${BASE_URL}/v1/pets/${id}/fotos`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        // IMPORTANTE: Não definimos Content-Type aqui. O navegador define sozinho.
       },
       body: formData
     });

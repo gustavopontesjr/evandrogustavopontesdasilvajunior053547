@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { ArrowLeft, Save, Upload, Camera, User, Phone, AlertCircle, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Save, Upload, Camera, User, Phone, AlertCircle, ChevronRight, Trash2, Pencil, X } from 'lucide-react';
+
 import { Header } from '../components/Header';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import { petService } from '../services/petService';
 import type { Pet, PetRequest } from '../types/pet';
 import type { Tutor } from '../types/tutor';
@@ -16,8 +18,18 @@ export function PetDetails() {
   const [tutors, setTutors] = useState<Tutor[]>([]);
   
   const [isLoading, setIsLoading] = useState(false);
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<PetRequest>();
+  const [isEditing, setIsEditing] = useState(false);
 
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    title: '',
+    description: '',
+    variant: 'danger' as 'danger' | 'success',
+    singleButton: false,
+    onConfirm: () => {}
+  });
+
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<PetRequest>();
   const currentSpecies = watch('especie');
 
   useEffect(() => {
@@ -28,21 +40,11 @@ export function PetDetails() {
     try {
       const data = await petService.getById(petId);
       setPet(data);
-      
       setValue('nome', data.nome);
       setValue('raca', data.raca);
       setValue('idade', data.idade);
-      
-      if (data.especie) {
-        setValue('especie', data.especie);
-      }
-
-      if (data.tutores && data.tutores.length > 0) {
-        setTutors(data.tutores);
-      } else {
-        setTutors([]);
-      }
-
+      if (data.especie) setValue('especie', data.especie);
+      if (data.tutores) setTutors(data.tutores);
     } catch (error) {
       console.error('Erro ao carregar pet', error);
       navigate('/pets');
@@ -54,12 +56,60 @@ export function PetDetails() {
     try {
       setIsLoading(true);
       await petService.update(Number(id), data);
-      alert('Dados salvos com sucesso!');
-      loadPet(Number(id));
+      
+      setModalConfig({
+        isOpen: true,
+        title: 'Sucesso!',
+        description: 'Os dados do pet foram atualizados corretamente.',
+        variant: 'success',
+        singleButton: true,
+        onConfirm: () => {
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+          setIsEditing(false);
+          loadPet(Number(id));
+        }
+      });
+
     } catch (error) {
       alert('Erro ao atualizar.');
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  function handleDeleteRequest() {
+    setModalConfig({
+      isOpen: true,
+      title: 'Excluir Pet?',
+      description: `Tem certeza que deseja remover "${pet?.nome}"? Essa ação é irreversível.`,
+      variant: 'danger',
+      singleButton: false,
+      onConfirm: confirmDelete
+    });
+  }
+
+  async function confirmDelete() {
+    if (!id) return;
+    try {
+      setIsLoading(true);
+      await petService.delete(Number(id));
+      navigate('/pets');
+    } catch (error) {
+      console.error(error);
+      alert('Erro ao excluir pet.');
+      setModalConfig(prev => ({ ...prev, isOpen: false }));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function handleCancelEdit() {
+    setIsEditing(false);
+    if (pet) {
+      setValue('nome', pet.nome);
+      setValue('raca', pet.raca);
+      setValue('idade', pet.idade);
+      if (pet.especie) setValue('especie', pet.especie);
     }
   }
 
@@ -69,6 +119,16 @@ export function PetDetails() {
       setIsLoading(true);
       await petService.uploadPhoto(Number(id), event.target.files[0]);
       await loadPet(Number(id));
+      
+      setModalConfig({
+        isOpen: true,
+        title: 'Foto Atualizada',
+        description: 'A nova foto do pet foi salva com sucesso!',
+        variant: 'success',
+        singleButton: true,
+        onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+      });
+
     } catch (error) {
       alert('Falha ao enviar foto.');
     } finally {
@@ -81,14 +141,26 @@ export function PetDetails() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      
+      <ConfirmationModal 
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={modalConfig.onConfirm}
+        title={modalConfig.title}
+        description={modalConfig.description}
+        variant={modalConfig.variant}
+        singleButton={modalConfig.singleButton}
+        isLoading={isLoading}
+      />
+
       <main className="max-w-4xl mx-auto px-6 py-8">
-        <button onClick={() => navigate('/pets')} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6">
+        {/* CORRIGIDO: Botão Voltar agora é branco */}
+        <button onClick={() => navigate('/pets')} className="flex items-center gap-2 text-white hover:text-gray-200 mb-6">
           <ArrowLeft className="w-4 h-4" /> <span>Voltar</span>
         </button>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           
-          {/* COLUNA ESQUERDA: FOTO E LISTA DE TUTORES */}
           <div className="md:col-span-1 space-y-6">
             <div className="bg-surface border border-gray-800 rounded-xl p-6 flex flex-col items-center">
               <div className="w-40 h-40 rounded-full bg-black/50 overflow-hidden mb-4 relative group border-4 border-gray-800">
@@ -106,14 +178,11 @@ export function PetDetails() {
               <p className="text-primary text-sm font-bold uppercase">
                 {currentSpecies ? `${currentSpecies} • ` : ''}{pet.raca}
               </p>
-              
-              {/* --- NOVO: ID DO PET AQUI --- */}
               <p className="text-xs text-cyan-400 font-bold mt-2 bg-cyan-950/30 px-3 py-1 rounded-full border border-cyan-400/20">
                 ID: #{pet.id}
               </p>
             </div>
 
-            {/* CARD DE TUTORES */}
             <div className="bg-surface border border-gray-800 rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-white font-bold flex items-center gap-2 text-sm uppercase tracking-wider">
@@ -134,7 +203,6 @@ export function PetDetails() {
                           <p className="text-xs text-cyan-400 font-bold">ID: {tutor.id}</p>
                         </div>
                       </div>
-                      
                       <div className="pl-1">
                         <p className="text-xs text-gray-300 flex items-center gap-2 mb-2">
                            <Phone className="w-3 h-3 text-primary"/> {tutor.telefone}
@@ -150,54 +218,78 @@ export function PetDetails() {
                   ))}
                 </div>
               ) : (
+                /* CORRIGIDO: Mensagens agora são brancas/cinza claro */
                 <div className="text-center py-6 bg-black/20 rounded-lg">
-                  <p className="text-gray-500 text-sm italic">Este pet não possui tutor vinculado.</p>
-                  <p className="text-xs text-gray-600 mt-2">Vincule-o através da tela de Tutores.</p>
+                  <p className="text-white text-sm italic">Este pet não possui tutor vinculado.</p>
+                  <p className="text-xs text-gray-300 mt-2">Vincule-o através da tela de Tutores.</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* COLUNA DIREITA: FORMULÁRIO */}
           <div className="md:col-span-2">
-            <div className="bg-surface border border-gray-800 rounded-xl p-8">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-white">Editar Dados</h2>
-                <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">Modo Edição</span>
+            <div className="bg-surface border border-gray-800 rounded-xl p-8 relative">
+              <div className="flex justify-between items-center mb-8 border-b border-gray-800 pb-4">
+                <h2 className="text-xl font-bold text-white">Dados do Pet</h2>
+                <div className="flex gap-2">
+                  {!isEditing ? (
+                    <>
+                      <button 
+                        onClick={handleDeleteRequest}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                        title="Excluir Pet"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => setIsEditing(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg font-bold text-sm transition-all"
+                      >
+                        <Pencil className="w-4 h-4" /> EDITAR
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs bg-primary/20 text-primary px-3 py-1 rounded-full font-bold animate-pulse">
+                      Editando...
+                    </span>
+                  )}
+                </div>
               </div>
               
-              <form onSubmit={handleSubmit(handleUpdate)} className="space-y-4">
-                <Input label="Nome do Pet" {...register('nome')} error={errors.nome?.message} />
-                
+              <form onSubmit={handleSubmit(handleUpdate)} className="space-y-6">
+                <Input label="Nome do Pet" {...register('nome')} error={errors.nome?.message} disabled={!isEditing} />
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Input 
-                      label="Espécie" 
-                      placeholder="Ex: Cachorro, Gato..." 
-                      {...register('especie')} 
-                    />
-                    <div className="flex items-start gap-1 mt-1.5 opacity-60">
-                      <AlertCircle className="w-3 h-3 text-yellow-500 mt-0.5 flex-shrink-0" />
-                      <p className="text-[10px] text-gray-400 leading-tight">
-                        Atenção: A API atual não persiste este campo.
-                      </p>
-                    </div>
+                    <Input label="Espécie" placeholder="Ex: Cachorro, Gato..." {...register('especie')} disabled={!isEditing} />
+                    {isEditing && (
+                      <div className="flex items-start gap-1 mt-1.5 opacity-60">
+                        <AlertCircle className="w-3 h-3 text-yellow-500 mt-0.5 flex-shrink-0" />
+                        <p className="text-[10px] text-gray-400 leading-tight">Atenção: A API atual não persiste este campo.</p>
+                      </div>
+                    )}
                   </div>
-                  
-                  <Input label="Raça" {...register('raca')} error={errors.raca?.message} />
+                  <Input label="Raça" {...register('raca')} error={errors.raca?.message} disabled={!isEditing} />
                 </div>
-
-                <Input label="Idade" type="number" {...register('idade')} error={errors.idade?.message} />
+                <Input label="Idade" type="number" {...register('idade')} error={errors.idade?.message} disabled={!isEditing} />
                 
-                <div className="flex justify-end pt-4">
-                   <Button type="submit" isLoading={isLoading} className="gap-2 w-full sm:w-auto">
-                     <Save className="w-4 h-4" /> SALVAR ALTERAÇÕES
-                   </Button>
-                </div>
+                {isEditing && (
+                  <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-800 mt-6 animate-in fade-in slide-in-from-bottom-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={handleCancelEdit} 
+                      className="gap-2 border-gray-600 text-gray-300 hover:border-red-500 hover:text-red-500 hover:bg-red-500/10 transition-all duration-300"
+                    >
+                      <X className="w-4 h-4" /> CANCELAR
+                    </Button>
+                    <Button type="submit" isLoading={isLoading} className="gap-2 min-w-[140px]">
+                      <Save className="w-4 h-4" /> SALVAR
+                    </Button>
+                  </div>
+                )}
               </form>
             </div>
           </div>
-
         </div>
       </main>
     </div>

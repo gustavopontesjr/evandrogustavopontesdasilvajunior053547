@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { ArrowLeft, Save, Upload, Camera, Trash2, Link as LinkIcon, PawPrint } from 'lucide-react';
+import { ArrowLeft, Save, Upload, Camera, Trash2, Link as LinkIcon, PawPrint, Pencil, X } from 'lucide-react';
 import { Header } from '../components/Header';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import { tutorService } from '../services/tutorService';
 import type { Tutor } from '../types/tutor';
 
-// Interface local para evitar conflito de tipos no formulário
 interface TutorFormSchema {
   nome: string;
   email: string;
@@ -23,10 +23,19 @@ export function TutorDetails() {
   const [tutor, setTutor] = useState<Tutor | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [petIdToLink, setPetIdToLink] = useState('');
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    title: '',
+    description: '',
+    variant: 'danger' as 'danger' | 'success',
+    singleButton: false,
+    onConfirm: () => {}
+  });
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<TutorFormSchema>();
 
-  // --- MÁSCARAS ---
   const maskCPF = (value: string | number) => {
     const stringValue = String(value);
     return stringValue
@@ -55,7 +64,6 @@ export function TutorDetails() {
       
       setValue('nome', data.nome);
       setValue('email', data.email);
-      // Aplica máscara ao carregar
       setValue('telefone', maskPhone(data.telefone));
       setValue('cpf', maskCPF(data.cpf));
       setValue('endereco', data.endereco);
@@ -69,7 +77,6 @@ export function TutorDetails() {
     if (!id) return;
     try {
       setIsLoading(true);
-      // Limpeza das máscaras antes de enviar
       const payload = { 
         ...data, 
         cpf: Number(data.cpf.replace(/\D/g, '')),
@@ -77,10 +84,73 @@ export function TutorDetails() {
       };
 
       await tutorService.update(Number(id), payload);
-      alert('Dados atualizados!');
-      loadTutor(Number(id));
+      
+      setModalConfig({
+        isOpen: true,
+        title: 'Sucesso!',
+        description: 'Dados do tutor atualizados corretamente.',
+        variant: 'success',
+        singleButton: true,
+        onConfirm: () => {
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+          setIsEditing(false);
+          loadTutor(Number(id));
+        }
+      });
     } catch (error) {
       alert('Erro ao atualizar.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function handleDeleteTutorRequest() {
+    setModalConfig({
+      isOpen: true,
+      title: 'Excluir Tutor?',
+      description: `Tem certeza que deseja remover "${tutor?.nome}"? Isso removerá o acesso dele e desvinculará todos os pets.`,
+      variant: 'danger',
+      singleButton: false,
+      onConfirm: confirmDeleteTutor
+    });
+  }
+
+  async function confirmDeleteTutor() {
+    if (!id) return;
+    try {
+      setIsLoading(true);
+      await tutorService.delete(Number(id));
+      navigate('/tutores');
+    } catch (error) {
+      alert('Erro ao excluir tutor.');
+      setModalConfig(prev => ({ ...prev, isOpen: false }));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function handleUnlinkPetRequest(petId: number) {
+    setModalConfig({
+      isOpen: true,
+      title: 'Desvincular Pet?',
+      description: 'Tem certeza que deseja remover este pet da lista do tutor?',
+      variant: 'danger',
+      singleButton: false,
+      onConfirm: () => confirmUnlinkPet(petId)
+    });
+  }
+
+  async function confirmUnlinkPet(petId: number) {
+    if (!id) return;
+    try {
+      setIsLoading(true);
+      await tutorService.unlinkPet(Number(id), petId);
+      
+      setModalConfig(prev => ({ ...prev, isOpen: false }));
+      await loadTutor(Number(id));
+    } catch (error) {
+      alert('Erro ao desvincular.');
+      setModalConfig(prev => ({ ...prev, isOpen: false }));
     } finally {
       setIsLoading(false);
     }
@@ -92,6 +162,15 @@ export function TutorDetails() {
       setIsLoading(true);
       await tutorService.uploadPhoto(Number(id), event.target.files[0]);
       await loadTutor(Number(id));
+      
+      setModalConfig({
+        isOpen: true,
+        title: 'Foto Atualizada',
+        description: 'A nova foto do tutor foi salva!',
+        variant: 'success',
+        singleButton: true,
+        onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+      });
     } catch (error) {
       alert('Falha ao enviar foto.');
     } finally {
@@ -106,24 +185,29 @@ export function TutorDetails() {
       await tutorService.linkPet(Number(id), Number(petIdToLink));
       setPetIdToLink('');
       await loadTutor(Number(id));
-      alert('Pet vinculado com sucesso!');
+      
+      setModalConfig({
+        isOpen: true,
+        title: 'Pet Vinculado!',
+        description: 'O pet foi adicionado à família com sucesso.',
+        variant: 'success',
+        singleButton: true,
+        onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+      });
     } catch (error) {
-      alert('Erro ao vincular. Verifique se o ID do Pet existe.');
+      alert('Erro ao vincular. Verifique o ID.');
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function handleUnlinkPet(petId: number) {
-    if (!id || !confirm('Tem certeza que deseja remover este pet do tutor?')) return;
-    try {
-      setIsLoading(true);
-      await tutorService.unlinkPet(Number(id), petId);
-      await loadTutor(Number(id));
-    } catch (error) {
-      alert('Erro ao desvincular.');
-    } finally {
-      setIsLoading(false);
+  function handleCancelEdit() {
+    setIsEditing(false);
+    if (tutor) {
+      setValue('nome', tutor.nome);
+      setValue('telefone', maskPhone(tutor.telefone));
+      setValue('cpf', maskCPF(tutor.cpf));
+      setValue('endereco', tutor.endereco);
     }
   }
 
@@ -132,14 +216,26 @@ export function TutorDetails() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      
+      <ConfirmationModal 
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={modalConfig.onConfirm}
+        title={modalConfig.title}
+        description={modalConfig.description}
+        variant={modalConfig.variant}
+        singleButton={modalConfig.singleButton}
+        isLoading={isLoading}
+      />
+
       <main className="max-w-6xl mx-auto px-6 py-8">
-        <button onClick={() => navigate('/tutores')} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6">
+        {/* CORRIGIDO: Botão Voltar agora é branco */}
+        <button onClick={() => navigate('/tutores')} className="flex items-center gap-2 text-white hover:text-gray-200 mb-6">
           <ArrowLeft className="w-4 h-4" /> <span>Voltar</span>
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* COLUNA ESQUERDA */}
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-surface border border-gray-800 rounded-xl p-6 flex flex-col items-center">
               <div className="w-40 h-40 rounded-full bg-black/50 overflow-hidden mb-4 relative group border-4 border-gray-800">
@@ -156,7 +252,6 @@ export function TutorDetails() {
               <h2 className="text-xl font-bold text-white text-center">{tutor.nome}</h2>
               <p className="text-gray-400 text-sm mt-1 mb-2">{tutor.email}</p>
               
-              {/* ID NEON */}
               <p className="text-xs text-cyan-400 font-bold bg-cyan-950/30 px-3 py-1 rounded-full border border-cyan-400/20">
                 ID: #{tutor.id}
               </p>
@@ -178,19 +273,42 @@ export function TutorDetails() {
                   Vincular
                 </Button>
               </div>
-              <p className="text-xs text-gray-500 mt-2">
+              {/* CORRIGIDO: Mensagem de ajuda agora é branca */}
+              <p className="text-xs text-white mt-2">
                 Digite o ID de um pet existente para adicioná-lo a este tutor.
               </p>
             </div>
           </div>
 
-          {/* COLUNA DIREITA */}
           <div className="lg:col-span-2 space-y-8">
             
-            <div className="bg-surface border border-gray-800 rounded-xl p-8">
-              <div className="flex justify-between items-center mb-6">
+            <div className="bg-surface border border-gray-800 rounded-xl p-8 relative">
+              
+              <div className="flex justify-between items-center mb-6 border-b border-gray-800 pb-4">
                 <h2 className="text-xl font-bold text-white">Editar Informações</h2>
-                <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">Modo Edição</span>
+                <div className="flex gap-2">
+                  {!isEditing ? (
+                    <>
+                      <button 
+                        onClick={handleDeleteTutorRequest}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                        title="Excluir Tutor"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => setIsEditing(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg font-bold text-sm transition-all"
+                      >
+                        <Pencil className="w-4 h-4" /> EDITAR
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs bg-primary/20 text-primary px-3 py-1 rounded-full font-bold animate-pulse">
+                      Editando...
+                    </span>
+                  )}
+                </div>
               </div>
               
               <form onSubmit={handleSubmit(handleUpdate)} className="space-y-4">
@@ -199,7 +317,9 @@ export function TutorDetails() {
                   maxLength={80} 
                   {...register('nome', { required: true })} 
                   error={errors.nome?.message} 
+                  disabled={!isEditing}
                 />
+                
                 <div className="grid grid-cols-2 gap-4">
                   <Input 
                     label="Telefone" 
@@ -209,6 +329,7 @@ export function TutorDetails() {
                        onChange: (e) => setValue('telefone', maskPhone(e.target.value))
                     })} 
                     error={errors.telefone?.message} 
+                    disabled={!isEditing}
                   />
                   <Input 
                     label="CPF" 
@@ -218,29 +339,45 @@ export function TutorDetails() {
                        onChange: (e) => setValue('cpf', maskCPF(e.target.value))
                     })} 
                     error={errors.cpf?.message} 
+                    disabled={!isEditing}
                   />
                 </div>
+
                 <Input 
                   label="Endereço" 
                   maxLength={150}
                   {...register('endereco')} 
                   error={errors.endereco?.message} 
+                  disabled={!isEditing}
                 />
                 
-                <div className="flex justify-end pt-2">
-                   <Button type="submit" isLoading={isLoading} className="gap-2"><Save className="w-4 h-4" /> Salvar</Button>
-                </div>
+                {isEditing && (
+                  <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-800 mt-6 animate-in fade-in slide-in-from-bottom-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={handleCancelEdit} 
+                      className="gap-2 border-gray-600 text-gray-300 hover:border-red-500 hover:text-red-500 hover:bg-red-500/10 transition-all duration-300"
+                    >
+                      <X className="w-4 h-4" /> CANCELAR
+                    </Button>
+
+                    <Button type="submit" isLoading={isLoading} className="gap-2 min-w-[140px]">
+                      <Save className="w-4 h-4" /> SALVAR
+                    </Button>
+                  </div>
+                )}
               </form>
             </div>
 
-            {/* LISTA DE PETS DA FAMÍLIA */}
             <div>
               <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <PawPrint className="w-5 h-5 text-primary" /> Pets da Família
               </h2>
               
               {!tutor.pets || tutor.pets.length === 0 ? (
-                <div className="bg-surface border border-dashed border-gray-800 rounded-xl p-8 text-center text-gray-500">
+                /* CORRIGIDO: Mensagem de "sem pets" agora é branca */
+                <div className="bg-surface border border-dashed border-gray-800 rounded-xl p-8 text-center text-white">
                   Este tutor ainda não tem pets vinculados.
                 </div>
               ) : (
@@ -259,7 +396,7 @@ export function TutorDetails() {
                       </div>
                       
                       <button 
-                        onClick={() => handleUnlinkPet(pet.id)}
+                        onClick={() => handleUnlinkPetRequest(pet.id)}
                         className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-colors"
                         title="Desvincular Pet"
                       >
