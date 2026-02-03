@@ -7,7 +7,6 @@ export function Header() {
   const location = useLocation();
   const { logout } = useAuth();
 
-  // Função para verificar se o link está ativo (design visual)
   const getLinkClass = (path: string) => {
     const isActive = location.pathname.startsWith(path);
     return `
@@ -19,11 +18,9 @@ export function Header() {
   };
 
   return (
-    // O 'backdrop-blur-md' cria o efeito de vidro
     <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-background/80 backdrop-blur-md">
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
         
-        {/* Lado Esquerdo: Logo */}
         <div className="flex items-center gap-3">
           <div className="bg-gradient-to-tr from-primary to-emerald-600 p-2 rounded-lg shadow-lg shadow-primary/20">
             <PawPrint className="w-5 h-5 text-black fill-current" />
@@ -33,7 +30,6 @@ export function Header() {
           </span>
         </div>
 
-        {/* Centro: Navegação (Pills) */}
         <nav className="flex items-center gap-2 bg-surface/50 p-1 rounded-full border border-white/5">
           <button 
             onClick={() => navigate('/pets')}
@@ -52,7 +48,6 @@ export function Header() {
           </button>
         </nav>
 
-        {/* Lado Direito: Perfil / Sair */}
         <div className="flex items-center gap-4">
           <div className="h-6 w-px bg-white/10 hidden sm:block"></div>
           <button 
