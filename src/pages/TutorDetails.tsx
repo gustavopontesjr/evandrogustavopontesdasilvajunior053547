@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { ArrowLeft, Save, Upload, Camera, Trash2, Link as LinkIcon, PawPrint, Pencil, X, Phone, MapPin, MessageCircle, Maximize2 } from 'lucide-react';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { ConfirmationModal } from '../components/ConfirmationModal';
-import { tutorService } from '../services/tutorService';
-import type { Tutor } from '../types/tutor';
+import { useTutorDetails } from '../hooks/useTutorDetails';
 
 interface TutorFormSchema {
   nome: string;
@@ -19,24 +18,12 @@ interface TutorFormSchema {
 export function TutorDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [tutor, setTutor] = useState<Tutor | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [petIdToLink, setPetIdToLink] = useState('');
-  
-  const [isEditing, setIsEditing] = useState(false);
-  const [isZoomOpen, setIsZoomOpen] = useState(false);
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
-  const [modalConfig, setModalConfig] = useState({
-    isOpen: false,
-    title: '',
-    description: '',
-    variant: 'danger' as 'danger' | 'success',
-    singleButton: false,
-    onConfirm: () => {}
-  });
+  const {
+    tutor, isLoading, petIdToLink, setPetIdToLink, isEditing, setIsEditing, 
+    isZoomOpen, setIsZoomOpen, previewUrl, modalConfig, setModalConfig,
+    handlePhotoSelect, cancelEdit, updateTutor, requestDeleteTutor, linkPet, requestUnlinkPet
+  } = useTutorDetails(id);
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<TutorFormSchema>();
 
@@ -62,166 +49,14 @@ export function TutorDetails() {
   };
 
   useEffect(() => {
-    if (id) loadTutor(Number(id));
-  }, [id]);
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
-
-  async function loadTutor(tutorId: number) {
-    try {
-      const data = await tutorService.getById(tutorId);
-      setTutor(data);
-      
-      setValue('nome', data.nome);
-      setValue('email', data.email);
-      setValue('telefone', maskPhone(data.telefone));
-      setValue('cpf', maskCPF(data.cpf));
-      setValue('endereco', data.endereco);
-    } catch (error) {
-      console.error(error);
-      navigate('/tutores');
-    }
-  }
-
-  async function handleUpdate(data: TutorFormSchema) {
-    if (!id) return;
-    try {
-      setIsLoading(true);
-      const payload = { 
-        ...data, 
-        cpf: Number(data.cpf.replace(/\D/g, '')),
-        telefone: data.telefone.replace(/\D/g, '')
-      };
-
-      await tutorService.update(Number(id), payload);
-
-      if (selectedFile) {
-        await tutorService.uploadPhoto(Number(id), selectedFile);
-      }
-      
-      setModalConfig({
-        isOpen: true,
-        title: 'Sucesso!',
-        description: 'Dados do tutor atualizados corretamente.',
-        variant: 'success',
-        singleButton: true,
-        onConfirm: () => {
-          setModalConfig(prev => ({ ...prev, isOpen: false }));
-          setIsEditing(false);
-          setSelectedFile(null);
-          setPreviewUrl(null);
-          loadTutor(Number(id));
-        }
-      });
-    } catch (error) {
-      alert('Erro ao atualizar.');
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  function handleDeleteTutorRequest() {
-    setModalConfig({
-      isOpen: true,
-      title: 'Excluir Tutor?',
-      description: `Tem certeza que deseja remover "${tutor?.nome}"? Isso removerá o acesso dele e desvinculará todos os pets.`,
-      variant: 'danger',
-      singleButton: false,
-      onConfirm: confirmDeleteTutor
-    });
-  }
-
-  async function confirmDeleteTutor() {
-    if (!id) return;
-    try {
-      setIsLoading(true);
-      await tutorService.delete(Number(id));
-      navigate('/tutores');
-    } catch (error) {
-      alert('Erro ao excluir tutor.');
-      setModalConfig(prev => ({ ...prev, isOpen: false }));
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  function handleUnlinkPetRequest(petId: number) {
-    setModalConfig({
-      isOpen: true,
-      title: 'Desvincular Pet?',
-      description: 'Tem certeza que deseja remover este pet da lista do tutor?',
-      variant: 'danger',
-      singleButton: false,
-      onConfirm: () => confirmUnlinkPet(petId)
-    });
-  }
-
-  async function confirmUnlinkPet(petId: number) {
-    if (!id) return;
-    try {
-      setIsLoading(true);
-      await tutorService.unlinkPet(Number(id), petId);
-      
-      setModalConfig(prev => ({ ...prev, isOpen: false }));
-      await loadTutor(Number(id));
-    } catch (error) {
-      alert('Erro ao desvincular.');
-      setModalConfig(prev => ({ ...prev, isOpen: false }));
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  function handlePhotoSelect(event: React.ChangeEvent<HTMLInputElement>) {
-    if (!event.target.files?.length) return;
-    
-    const file = event.target.files[0];
-    setSelectedFile(file);
-    
-    const objectUrl = URL.createObjectURL(file);
-    setPreviewUrl(objectUrl);
-  }
-
-  async function handleLinkPet() {
-    if (!id || !petIdToLink) return;
-    try {
-      setIsLoading(true);
-      await tutorService.linkPet(Number(id), Number(petIdToLink));
-      setPetIdToLink('');
-      await loadTutor(Number(id));
-      
-      setModalConfig({
-        isOpen: true,
-        title: 'Pet Vinculado!',
-        description: 'O pet foi adicionado à família com sucesso.',
-        variant: 'success',
-        singleButton: true,
-        onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
-      });
-    } catch (error) {
-      alert('Erro ao vincular. Verifique o ID.');
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  function handleCancelEdit() {
-    setIsEditing(false);
-    setSelectedFile(null);
-    setPreviewUrl(null);
-
-    if (tutor) {
+    if (tutor && !isEditing) {
       setValue('nome', tutor.nome);
       setValue('email', tutor.email);
       setValue('telefone', maskPhone(tutor.telefone));
       setValue('cpf', maskCPF(tutor.cpf));
       setValue('endereco', tutor.endereco);
     }
-  }
+  }, [tutor, isEditing, setValue]);
 
   if (!tutor) return <div className="text-center py-20 text-white animate-pulse">Carregando perfil...</div>;
 
@@ -296,7 +131,12 @@ export function TutorDetails() {
                 <label className="absolute inset-0 bg-black/60 flex flex-col gap-2 items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-all backdrop-blur-[2px]">
                   <Upload className="w-8 h-8 text-primary" />
                   <span className="text-xs font-bold text-white uppercase tracking-wide">Alterar Foto</span>
-                  <input type="file" className="hidden" accept="image/*" onChange={handlePhotoSelect} />
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={(e) => e.target.files?.length && handlePhotoSelect(e.target.files[0])} 
+                  />
                 </label>
               ) : (
                 displayImage && (
@@ -346,7 +186,7 @@ export function TutorDetails() {
                 value={petIdToLink}
                 onChange={e => setPetIdToLink(e.target.value)}
               />
-              <Button onClick={handleLinkPet} disabled={!petIdToLink || isLoading} className="whitespace-nowrap px-4 py-2">
+              <Button onClick={linkPet} disabled={!petIdToLink || isLoading} className="whitespace-nowrap px-4 py-2">
                 Vincular
               </Button>
             </div>
@@ -370,7 +210,7 @@ export function TutorDetails() {
                 {!isEditing ? (
                   <>
                     <button 
-                      onClick={handleDeleteTutorRequest}
+                      onClick={requestDeleteTutor}
                       className="p-2.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all border border-transparent hover:border-red-500/20"
                       title="Excluir Tutor"
                     >
@@ -391,7 +231,7 @@ export function TutorDetails() {
               </div>
             </div>
             
-            <form onSubmit={handleSubmit(handleUpdate)} className="space-y-5">
+            <form onSubmit={handleSubmit(updateTutor)} className="space-y-5">
               <Input 
                 label="Nome Completo" 
                 maxLength={80} 
@@ -445,7 +285,7 @@ export function TutorDetails() {
                   <Button 
                     type="button" 
                     variant="outline" 
-                    onClick={handleCancelEdit} 
+                    onClick={cancelEdit} 
                     className="gap-2 border-white/10 text-gray-400 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition-all"
                   >
                     <X className="w-4 h-4" /> CANCELAR
@@ -479,7 +319,7 @@ export function TutorDetails() {
                   <div key={pet.id} className="bg-surface/50 border border-white/10 rounded-xl p-4 flex items-center justify-between group hover:border-primary/30 hover:bg-surface/80 transition-all cursor-pointer" onClick={() => navigate(`/pets/${pet.id}`)}>
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 rounded-lg bg-black/40 overflow-hidden border border-white/5 group-hover:border-primary/50 transition-colors">
-                          {pet.foto ? <img src={pet.foto.url} className="w-full h-full object-cover"/> : <PawPrint className="w-6 h-6 m-4 text-gray-700"/>}
+                          {pet.foto ? <img src={pet.foto.url} className="w-full h-full object-cover" alt={pet.nome}/> : <PawPrint className="w-6 h-6 m-4 text-gray-700"/>}
                       </div>
                       <div>
                         <p className="text-white font-bold group-hover:text-primary transition-colors">{pet.nome}</p>
@@ -491,7 +331,7 @@ export function TutorDetails() {
                     <button 
                       onClick={(e) => {
                           e.stopPropagation();
-                          handleUnlinkPetRequest(pet.id);
+                          requestUnlinkPet(pet.id);
                       }}
                       className="p-2 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                       title="Desvincular Pet"

@@ -1,29 +1,18 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
-import type { ReactNode } from 'react'; 
 import { useAuth } from '../contexts/AuthContext';
 import { AuthState } from '../services/AuthState';
 import { Loader2 } from 'lucide-react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 
+// Importações Lazy para otimização de bundle (Code Splitting)
 const Login = lazy(() => import('../pages/Login').then(m => ({ default: m.Login })));
 const Pets = lazy(() => import('../pages/Pets').then(m => ({ default: m.Pets })));
-const PetForm = lazy(() => import('../pages/PetForm').then(m => ({ default: m.PetForm })));
 const PetDetails = lazy(() => import('../pages/PetDetails').then(m => ({ default: m.PetDetails })));
+const PetForm = lazy(() => import('../pages/PetForm').then(m => ({ default: m.PetForm })));
 const Tutors = lazy(() => import('../pages/Tutors').then(m => ({ default: m.Tutors })));
-const TutorForm = lazy(() => import('../pages/TutorForm').then(m => ({ default: m.TutorForm })));
 const TutorDetails = lazy(() => import('../pages/TutorDetails').then(m => ({ default: m.TutorDetails })));
-
-function PrivateRoute({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
-  const isAuthorized = isAuthenticated || !!AuthState.getToken();
-  
-  if (!isAuthorized) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <DashboardLayout>{children}</DashboardLayout>;
-}
+const TutorForm = lazy(() => import('../pages/TutorForm').then(m => ({ default: m.TutorForm })));
 
 function LoadingScreen() {
   return (
@@ -36,22 +25,46 @@ function LoadingScreen() {
   );
 }
 
+function ProtectedLayout() {
+  const { isAuthenticated } = useAuth();
+  const isAuthorized = isAuthenticated || !!AuthState.getToken();
+
+  if (!isAuthorized) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <DashboardLayout>
+      <Outlet />
+    </DashboardLayout>
+  );
+}
+
 export function AppRoutes() {
+  const { isAuthenticated } = useAuth();
+  const isAuthorized = isAuthenticated || !!AuthState.getToken();
+
   return (
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route 
+          path="/login" 
+          element={!isAuthorized ? <Login /> : <Navigate to="/pets" replace />} 
+        />
 
-        <Route path="/pets" element={<PrivateRoute><Pets /></PrivateRoute>} />
-        <Route path="/pets/novo" element={<PrivateRoute><PetForm /></PrivateRoute>} />
-        <Route path="/pets/:id" element={<PrivateRoute><PetDetails /></PrivateRoute>} />
+        <Route element={<ProtectedLayout />}>
+          <Route path="/pets" element={<Pets />} />
+          <Route path="/pets/novo" element={<PetForm />} />
+          <Route path="/pets/:id" element={<PetDetails />} />
 
-        <Route path="/tutores" element={<PrivateRoute><Tutors /></PrivateRoute>} />
-        <Route path="/tutores/novo" element={<PrivateRoute><TutorForm /></PrivateRoute>} />
-        <Route path="/tutores/:id" element={<PrivateRoute><TutorDetails /></PrivateRoute>} />
+          <Route path="/tutores" element={<Tutors />} />
+          <Route path="/tutores/novo" element={<TutorForm />} />
+          <Route path="/tutores/:id" element={<TutorDetails />} />
+          
+          <Route path="/" element={<Navigate to="/pets" replace />} />
+        </Route>
 
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/pets" replace />} />
       </Routes>
     </Suspense>
   );
