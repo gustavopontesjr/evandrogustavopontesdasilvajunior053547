@@ -27,11 +27,14 @@ O Dockerfile utiliza a estratégia de Multi-stage Build. A aplicação é compil
 
 ## Limitações Conhecidas e Notas de Integração
 
-Em conformidade com o item do edital sobre transparência técnica, registro a seguinte observação referente à integração com a API fornecida:
+Em conformidade com o item do edital sobre transparência técnica, registro as seguintes observações referentes à integração com a API fornecida:
 
 **Campo "Espécie" no cadastro de Pets**
 Durante os testes de integração, observei que o campo "espécie", embora seja enviado corretamente no payload das requisições (POST/PUT), não está sendo persistido ou retornado pela API (`pet-manager-api.geia.vip`).
 Para fins de avaliação e cumprimento do requisito visual, o campo foi mantido no formulário, acompanhado de uma nota informativa na interface ("Campo informativo").
+
+**Expiração de Sessão (Token)**
+A API fornecida possui uma política de segurança com tempo de expiração de token. Caso ocorra inatividade ou o tempo limite seja excedido durante a navegação, a aplicação redirecionará automaticamente para a tela de login para renovação das credenciais.
 
 ---
 
@@ -56,27 +59,29 @@ src/
 - Node.js 18 ou superior (para execução local)
 - Docker (para execução em container)
 
-### Opção 1: Execução Local (Desenvolvimento)
+### Opção 1: Execução via Docker
 
-1. Instale as dependências:
-   npm install
+1. Abra o terminal (Prompt de Comando, PowerShell ou Terminal) na pasta raiz do projeto.
 
-2. Inicie o servidor de desenvolvimento:
-   npm run dev
+2. Construa a imagem da aplicação executando o comando abaixo. Aguarde o processo de download e compilação terminar:
+   Comando: docker build -t sigpet-front .
 
-3. Acesse a aplicação em: http://localhost:5173
+3. Inicie o container executando o comando abaixo. Isso subirá o servidor na porta 8080:
+   Comando: docker run -p 8080:80 sigpet-front
 
-### Opção 2: Execução via Docker (Produção)
-
-1. Construa a imagem Docker:
-   docker build -t sigpet-front .
-
-2. Execute o container mapeando a porta 8080:
-   docker run -p 8080:80 sigpet-front
-
-3. Acesse a aplicação em: http://localhost:8080
+4. Após iniciar, acesse a aplicação no seu navegador através do endereço: http://localhost:8080
 
 Nota: O endpoint de Health Check (Liveness Probe) exigido no edital estará disponível em: http://localhost:8080/health.json
+
+### Opção 2: Execução Local
+
+1. Abra o terminal (Prompt de Comando, PowerShell ou Terminal) na pasta raiz do projeto.
+
+2. Instale as dependências do projeto usando o comando: npm install
+
+3. Após terminar a instalação, inicie o servidor de desenvolvimento usando o comando: npm run dev
+
+4. Acesse a aplicação através do link exibido no terminal. Copie e cole o link em seu navegador ou segure CTRL e clique nele.
 
 ---
 
