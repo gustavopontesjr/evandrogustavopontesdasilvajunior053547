@@ -69,10 +69,12 @@ src/
 
 ### Opção 1: Execução via Docker (Recomendada)
 
-1. No terminal aberto na pasta do projeto, construa a imagem da aplicação executando o comando abaixo. Aguarde o processo terminar:
+1. No terminal aberto na pasta do projeto, construa a imagem da aplicação executando o comando abaixo. Aguarde o processo terminar.
+
    Comando: docker build -t sigpet-front .
 
-2. Inicie o container executando o comando abaixo. Isso subirá o servidor na porta 8080:
+2. Inicie o container executando o comando abaixo. Isso subirá o servidor na porta 8080.
+
    Comando: docker run -p 8080:80 sigpet-front
 
 3. Após iniciar, acesse a aplicação no seu navegador através do endereço: http://localhost:8080
@@ -85,9 +87,13 @@ Nota: O endpoint de Health Check (Liveness Probe) exigido no edital estará disp
 
 ### Opção 2: Execução Local
 
-1. No terminal aberto na pasta do projeto, instale as dependências usando o comando: npm install
+1. No terminal aberto na pasta do projeto, instale as dependências usando o comando abaixo.
 
-2. Após terminar a instalação, inicie o servidor de desenvolvimento usando o comando: npm run dev
+   Comando: npm install
+
+2. Após terminar a instalação, inicie o servidor de desenvolvimento usando o comando abaixo.
+
+   Comando: npm run dev
 
 3. Acesse a aplicação através do link exibido no terminal. Copie e cole o link em seu navegador ou segure CTRL e clique nele.
 
